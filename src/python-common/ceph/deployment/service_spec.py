@@ -1290,15 +1290,29 @@ class RGWSpec(ServiceSpec):
         self.disable_multisite_sync_traffic = disable_multisite_sync_traffic
 
     def get_port_start(self) -> List[int]:
-        return [self.get_port()]
+        ports = self.get_port()
+        return ports
 
-    def get_port(self) -> int:
+    def get_port(self) -> List[int]:
+        ports = []
         if self.rgw_frontend_port:
-            return self.rgw_frontend_port
-        if self.ssl:
-            return 443
-        else:
-            return 80
+            ports.append(self.rgw_frontend_port)
+
+        ssl_port = next(
+            (
+                int(arg.split('=')[1])
+                for arg in (self.rgw_frontend_extra_args or [])
+                if arg.startswith("ssl_port=")
+            ),
+            None,
+        )
+
+        if self.ssl and ssl_port:
+            ports.append(ssl_port)
+        if not ports:
+            ports.append(443 if self.ssl else 80)
+
+        return ports
 
     def validate(self) -> None:
         super(RGWSpec, self).validate()
@@ -3164,6 +3178,9 @@ class SMBSpec(ServiceSpec):
         parts[-1] = objname
         uri = 'rados://' + '/'.join(parts)
         return uri
+
+    def get_port_start(self) -> List[int]:
+        return [445, 9922]  # SMB service runs on port 445, and smbmetrics uses 9922
 
     def strict_cluster_ip_specs(self) -> List[Dict[str, Any]]:
         return [s.to_strict() for s in (self.cluster_public_addrs or [])]
