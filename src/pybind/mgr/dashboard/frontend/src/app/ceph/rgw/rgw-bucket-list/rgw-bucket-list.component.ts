@@ -127,7 +127,9 @@ export class RgwBucketListComponent extends ListWithDetails implements OnInit, O
     const deleteAction: CdTableAction = {
       permission: 'delete',
       icon: Icons.destroy,
+      title: $localize`Bucket is not empty. Remove all objects before deletion.`,
       click: () => this.deleteAction(),
+      disable: () => this.selection.first()?.num_objects > 0,
       name: this.actionLabels.DELETE
     };
     const tieringAction: CdTableAction = {
@@ -137,7 +139,7 @@ export class RgwBucketListComponent extends ListWithDetails implements OnInit, O
       disable: () => !this.selection.hasSelection,
       name: this.actionLabels.TIERING
     };
-    this.tableActions = [addAction, editAction, deleteAction, tieringAction];
+    this.tableActions = [addAction, editAction, tieringAction, deleteAction];
     this.setTableRefreshTimeout();
   }
 

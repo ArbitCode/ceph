@@ -5224,9 +5224,7 @@ void OSDMonitor::tick()
   }
 
   // expire blocklisted items?
-  for (ceph::unordered_map<entity_addr_t,utime_t>::iterator p = osdmap.blocklist.begin();
-       p != osdmap.blocklist.end();
-       ++p) {
+  for (auto p = osdmap.blocklist.begin(); p != osdmap.blocklist.end(); ++p) {
     if (p->second < now) {
       dout(10) << "expiring blocklist item " << p->first << " expired " << p->second << " < now " << now << dendl;
       pending_inc.old_blocklist.push_back(p->first);
@@ -5992,9 +5990,7 @@ bool OSDMonitor::preprocess_command(MonOpRequestRef op)
     if (f)
       f->open_array_section("blocklist");
 
-    for (ceph::unordered_map<entity_addr_t,utime_t>::iterator p = osdmap.blocklist.begin();
-	 p != osdmap.blocklist.end();
-	 ++p) {
+    for (auto p = osdmap.blocklist.begin(); p != osdmap.blocklist.end(); ++p) {
       if (f) {
 	f->open_object_section("entry");
 	f->dump_string("addr", p->first.get_legacy_str());
@@ -15274,7 +15270,10 @@ bool OSDMonitor::check_for_dead_crush_zones(const map<string,set<string>>& dead_
   bool really_down = false;
   for (auto dbi : dead_buckets) {
     const string& bucket_name = dbi.first;
-    ceph_assert(osdmap.crush->name_exists(bucket_name));
+    if (!osdmap.crush->name_exists(bucket_name)) {
+      dout(10) << "CRUSH bucket " << bucket_name << " does not exist" << dendl;
+      continue;
+    }
     int bucket_id = osdmap.crush->get_item_id(bucket_name);
     dout(20) << "Checking " << bucket_name << " id " << bucket_id
 	     << " to see if OSDs are also down" << dendl;

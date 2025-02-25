@@ -408,6 +408,24 @@ export class TaskMessageService {
     'smb/cluster/remove': this.newTaskMessage(this.commonOperations.remove, (metadata) =>
       this.smbCluster(metadata)
     ),
+    'smb/ad/create': this.newTaskMessage(this.commonOperations.create, (metadata) =>
+      this.smbJoinAuth(metadata)
+    ),
+    'smb/ad/edit': this.newTaskMessage(this.commonOperations.update, (metadata) =>
+      this.smbJoinAuth(metadata)
+    ),
+    'smb/ad/remove': this.newTaskMessage(this.commonOperations.remove, (metadata) =>
+      this.smbJoinAuth(metadata)
+    ),
+    'smb/standalone/create': this.newTaskMessage(this.commonOperations.create, (metadata) =>
+      this.smbUsersgroups(metadata)
+    ),
+    'smb/standalone/edit': this.newTaskMessage(this.commonOperations.update, (metadata) =>
+      this.smbUsersgroups(metadata)
+    ),
+    'smb/standalone/remove': this.newTaskMessage(this.commonOperations.remove, (metadata) =>
+      this.smbUsersgroups(metadata)
+    ),
     // Grafana tasks
     'grafana/dashboards/update': this.newTaskMessage(
       this.commonOperations.update,
@@ -498,6 +516,18 @@ export class TaskMessageService {
     ),
     'smb/share/create': this.newTaskMessage(this.commonOperations.create, (metadata) =>
       this.smbShare(metadata)
+    ),
+    'smb/share/edit': this.newTaskMessage(this.commonOperations.update, (metadata) =>
+      this.smbCluster(metadata)
+    ),
+    'smb/share/delete': this.newTaskMessage(this.commonOperations.delete, (metadata) =>
+      this.smbShare(metadata)
+    ),
+    'cephfs/smb/joinauth/create': this.newTaskMessage(this.commonOperations.create, (metadata) =>
+      this.smbJoinAuth(metadata)
+    ),
+    'cephfs/smb/standalone/create': this.newTaskMessage(this.commonOperations.create, (metadata) =>
+      this.smbUsersgroups(metadata)
     )
   };
 
@@ -565,8 +595,12 @@ export class TaskMessageService {
     return $localize`SMB Cluster  '${metadata.cluster_id}'`;
   }
 
-  smbShare(metadata: { share_id: string }) {
-    return $localize`SMB Share  '${metadata.share_id}'`;
+  smbJoinAuth(metadata: { authId: string }) {
+    return $localize`SMB active directory access resource '${metadata.authId}'`;
+  }
+
+  smbUsersgroups(metadata: { usersGroupsId: string }) {
+    return $localize`SMB users and groups access resource '${metadata.usersGroupsId}'`;
   }
 
   service(metadata: any) {
@@ -611,6 +645,11 @@ export class TaskMessageService {
   snapshotSchedule(metadata: any) {
     return $localize`snapshot schedule for path '${metadata?.path}'`;
   }
+
+  smbShare(metadata: Record<'share_id', string>) {
+    return $localize`SMB share '${metadata?.share_id}'`;
+  }
+
   crudMessageId(id: string) {
     return $localize`${id}`;
   }

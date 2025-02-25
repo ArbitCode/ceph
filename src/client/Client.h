@@ -16,6 +16,7 @@
 #ifndef CEPH_CLIENT_H
 #define CEPH_CLIENT_H
 
+#include "common/admin_socket.h"
 #include "common/CommandTable.h"
 #include "common/Finisher.h"
 #include "common/Timer.h"
@@ -28,8 +29,6 @@
 #include "include/interval_set.h"
 #include "include/lru.h"
 #include "include/types.h"
-#include "include/unordered_map.h"
-#include "include/unordered_set.h"
 #include "include/cephfs/metrics/Types.h"
 #include "mds/mdstypes.h"
 #include "mds/MDSAuthCaps.h"
@@ -50,10 +49,14 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <unordered_set>
 
 using std::set;
 using std::map;
 using std::fstream;
+
+namespace boost::asio { class io_context; }
 
 class FSMap;
 class FSMapUser;
@@ -1876,16 +1879,16 @@ private:
 
   // file handles, etc.
   interval_set<int> free_fd_set;  // unused fds
-  ceph::unordered_map<int, Fh*> fd_map;
+  std::unordered_map<int, Fh*> fd_map;
   set<Fh*> ll_unclosed_fh_set;
-  ceph::unordered_set<dir_result_t*> opened_dirs;
+  std::unordered_set<dir_result_t*> opened_dirs;
   uint64_t fd_gen = 1;
 
   bool   mount_aborted = false;
   bool   blocklisted = false;
 
-  ceph::unordered_map<vinodeno_t, Inode*> inode_map;
-  ceph::unordered_map<ino_t, vinodeno_t> faked_ino_map;
+  std::unordered_map<vinodeno_t, Inode*> inode_map;
+  std::unordered_map<ino_t, vinodeno_t> faked_ino_map;
   interval_set<ino_t> free_faked_inos;
   ino_t last_used_faked_ino;
   ino_t last_used_faked_root;
@@ -1903,7 +1906,7 @@ private:
 
   xlist<Inode*> delayed_list;
   int num_flushing_caps = 0;
-  ceph::unordered_map<inodeno_t,SnapRealm*> snap_realms;
+  std::unordered_map<inodeno_t, SnapRealm*> snap_realms;
   std::map<std::string, std::string> metadata;
 
   ceph::coarse_mono_time last_auto_reconnect;
