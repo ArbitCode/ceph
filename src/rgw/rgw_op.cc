@@ -1036,7 +1036,7 @@ int handle_cloudtier_obj(req_state* s, const DoutPrefixProvider *dpp, rgw::sal::
       op_ret = get_system_versioning_params(s, &epoch, NULL);
       ldpp_dout(dpp, 20) << "getting versioning params tier placement handle cloud tier" << op_ret << dendl;
       if (op_ret < 0) {
-	ldpp_dout(dpp, 20) << "failed to get versioning params, op_ret = " << op_ret << dendl;
+        ldpp_dout(dpp, 20) << "failed to get versioning params, op_ret = " << op_ret << dendl;
         s->err.message = "failed to restore object";
         return op_ret;
       }
@@ -3193,6 +3193,13 @@ void RGWListBucket::execute(optional_yield y)
 {
   if (!s->bucket_exists) {
     op_ret = -ERR_NO_SUCH_BUCKET;
+    return;
+  }
+
+  if (const auto& current_index = s->bucket->get_info().layout.current_index;
+      current_index.layout.type == rgw::BucketIndexType::Indexless) {
+    s->err.message = "Indexless buckets cannot be listed";
+    op_ret = -ERR_METHOD_NOT_ALLOWED;
     return;
   }
 
@@ -6257,6 +6264,13 @@ void RGWPutACLs::execute(optional_yield y)
 
 void RGWPutLC::execute(optional_yield y)
 {
+  if (const auto& current_index = s->bucket->get_info().layout.current_index;
+      current_index.layout.type == rgw::BucketIndexType::Indexless) {
+    s->err.message = "Indexless buckets do not support lifecycle policy";
+    op_ret = -ERR_METHOD_NOT_ALLOWED;
+    return;
+  }
+
   bufferlist bl;
   
   RGWLifecycleConfiguration_S3 config(s->cct);

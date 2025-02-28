@@ -15,6 +15,7 @@ from tasks.cephfs.cephfs_test_case import CephFSTestCase
 from tasks.cephfs.fuse_mount import FuseMount
 from teuthology.contextutil import safe_while
 from teuthology.exceptions import CommandFailedError
+from teuthology import contextutil
 
 log = logging.getLogger(__name__)
 
@@ -4344,6 +4345,36 @@ class TestSubvolumes(TestVolumesHelper):
 
         # verify trash dir is clean.
         self._wait_for_trash_empty()
+
+    def test_create_when_subvol_name_is_too_long(self):
+        '''
+        255 chars of subvol name + 7 chars of (':', '_' and '.meta') and 0
+        chars for default group name is greater than 256 chars, therefore
+        subvol meta file issue should be tested.
+        '''
+        subvolname = 's' * 255
+        self.negtest_ceph_cmd(
+            f'fs subvolume create {self.volname} {subvolname}',
+            retval=errno.ENAMETOOLONG,
+            errmsgs='Error ENAMETOOLONG: use shorter group or subvol name, '
+                    'combination of both should be less than 249 characters')
+
+    def test_create_when_subvol_group_name_is_too_long(self):
+        '''
+        248 chars of group name + 7 chars of (':', '_' and '.meta') and 7
+        chars for subvol name is greater than 256 chars, therefore subvol
+        meta file issue should be tested.
+        '''
+        groupname = 'g' * 248
+        self.run_ceph_cmd(
+            f'fs subvolumegroup create {self.volname} {groupname}')
+        subvolname = 's' * 7
+        self.negtest_ceph_cmd(
+            f'fs subvolume create {self.volname} {subvolname} --group-name '
+            f'{groupname}',
+            retval=errno.ENAMETOOLONG,
+            errmsgs='Error ENAMETOOLONG: use shorter group or subvol name, '
+                    'combination of both should be less than 249 characters')
 
 class TestSubvolumeGroupSnapshots(TestVolumesHelper):
     """Tests for FS subvolume group snapshot operations."""
@@ -9096,6 +9127,51 @@ class TestMisc(TestVolumesHelper):
 
         # remove group
         self._fs_cmd("subvolumegroup", "rm", self.volname, group)
+
+    def test_dangling_symlink(self):
+        """
+        test_dangling_symlink
+        Tests for the presence of any dangling symlink, if yes,
+        will remove it.
+        """
+        subvolume = self._gen_subvol_name()
+        snapshot = self._gen_subvol_snap_name()
+        clone = self._gen_subvol_clone_name()
+
+        self._fs_cmd("subvolume", "create", self.volname, subvolume)
+
+        self._fs_cmd("subvolume", "snapshot", "create", self.volname, subvolume, snapshot)
+
+        self.config_set('mgr', 'mgr/volumes/snapshot_clone_delay', 60)
+
+        self.config_set('mgr', 'mgr/volumes/snapshot_clone_no_wait', False)
+
+        self._fs_cmd("subvolume", "snapshot", "clone", self.volname, subvolume, snapshot, clone)
+
+        result = json.loads(self._fs_cmd("subvolume", "snapshot", "info", self.volname, subvolume, snapshot))
+
+        # verify snapshot info
+        self.assertEqual(result['has_pending_clones'], "yes")
+
+        clone_path = f'./volumes/_nogroup/{clone}'
+        self.mount_a.run_shell(['sudo', 'rm', '-rf', clone_path], omit_sudo=False)
+
+        with contextutil.safe_while(sleep=5, tries=6) as proceed:
+            while proceed():
+                try:
+                    result = json.loads(self._fs_cmd("subvolume", "snapshot", "info", self.volname, subvolume, snapshot))
+                    # verify snapshot info
+                    self.assertEqual(result['has_pending_clones'], "no")
+                    break
+                except AssertionError as e:
+                    log.debug(f'{e}, retrying')
+
+        self._fs_cmd("subvolume", "snapshot", "rm", self.volname, subvolume, snapshot)
+
+        self._fs_cmd("subvolume", "rm", self.volname, subvolume)
+
+        self._wait_for_trash_empty()
+
 
 class TestPerModuleFinsherThread(TestVolumesHelper):
     """

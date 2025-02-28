@@ -125,14 +125,18 @@ if(COMPILER_SUPPORTS_REDUNDANT_MOVE)
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
   if(WIN32)
-    # require >= gcc-10 for compiling the windows port
-    set(minimum_gcc_version 10)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10)
+      message(FATAL_ERROR "C++20 support for win32 requires a minimum GCC version of 10.")
+    endif()
+  elseif(HAVE_SEASTAR)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+      # see https://tracker.ceph.com/issues/64375 for details
+      message(FATAL_ERROR "crimson/seastar require minimum GCC version of 13 for C++20 and coroutine support")
+    endif()
   else()
-    # require >= gcc-11 for compiling the whole tree
-    set(minimum_gcc_version 11)
-  endif()
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS minimum_gcc_version)
-    message(FATAL_ERROR "C++20 support requires a minimum GCC version of ${minimum_gcc_version}.")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+      message(FATAL_ERROR "C++20 support requires a minimum GCC version of 11.")
+    endif()
   endif()
   if(MINGW)
     # The MINGW headers are missing some "const" qualifiers.
@@ -151,8 +155,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
     endif()
   endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12) # require >= clang-12
-    message(FATAL_ERROR "C++20 support requires a minimum Clang version of 12.")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+    message(FATAL_ERROR "C++20 support requires a minimum Clang version of 16.")
   endif()
   string(APPEND CMAKE_EXE_LINKER_FLAGS " ${CMAKE_EXE_EXPORTS_C_FLAG}")
   string(APPEND CMAKE_LINKER_FLAGS " -rdynamic -export-dynamic ${CMAKE_EXE_EXPORTS_C_FLAG}")
@@ -169,6 +173,10 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
     -Wno-missing-braces
     -Wno-parentheses
     -Wno-deprecated-register)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 18)
+    add_compile_options(
+    -Wno-vla-cxx-extension)
+  endif()
   if(FREEBSD)
     # Need to use the GNU binutils linker to get versioning right.
     string(APPEND CMAKE_EXE_LINKER_FLAGS " -fuse-ld=/usr/local/bin/ld -Wno-unused-command-line-argument")
