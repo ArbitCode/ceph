@@ -6009,6 +6009,13 @@ int RGWCopyObj::verify_permission(optional_yield y)
   RGWAccessControlPolicy src_acl;
   boost::optional<Policy> src_policy;
 
+  // add server-side encryption headers
+  rgw_iam_add_crypt_attrs(s->env, s->info.crypt_attribute_map);
+
+  if(!verify_object_permission(this, s, rgw::IAM::s3PutObject)) {
+    return -EACCES;
+  }
+
   /* get buckets info (source and dest) */
   if (s->local_source &&  source_zone.empty()) {
     s->src_object->set_atomic(true);
